@@ -1,5 +1,9 @@
 # Sim Sketch Artist
 
+
+https://github.com/user-attachments/assets/e7873a2c-4b8e-4593-af1b-6f74139c639e
+
+
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
