@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowRight, Camera, Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
+import LiveSimulator from './LiveSimulator';
 
 type Point = [number, number];
 type Portrait = { title: string; strokes: Point[][]; preview_url?: string };
@@ -239,6 +240,10 @@ export default function App() {
     setStatus({ state: 'queued', stroke: 0, total: nextPortrait.strokes.length, error: null });
     setJobId(job.job_id);
     setPhase('queued');
+    document.getElementById('live-simulator')?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    });
   }
 
   async function sketch(sample = false, redraw = false) {
@@ -301,6 +306,8 @@ export default function App() {
         <div><div className="eyebrow"><span />A SMALL EXPERIMENT IN HUMAN + MACHINE</div><h1>You. In a few<br /><span>beautiful lines.</span></h1><p>A photo of you. A little Astra imagination.<br className="desktop-break" /> A real sketch, drawn inside Isaac Sim.</p></div>
         <div className="intro-note"><svg width="76" height="68" viewBox="0 0 76 68" fill="none" aria-hidden="true"><path d="M12 14C40 2 68 18 55 36C45 48 26 29 42 23C68 13 71 54 21 57M21 57L33 48M21 57L35 63" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg><span>One photo.<br />Your own robot artist.</span></div>
       </section>
+
+      <LiveSimulator api={api} job={jobId && status ? { id: jobId, ...status } : null} />
 
       <section className="workspace" aria-label="Portrait studio">
         <div className="studio-panel photo-panel">

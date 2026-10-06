@@ -1,0 +1,37 @@
+# Add the real live simulator to Lovable
+
+The Ubuntu service now publishes live frames from the actual Isaac Sim viewport.
+The reference app at the backend root includes this camera. The separately
+published Lovable app needs the following small integration.
+
+Paste this into the existing Lovable project:
+
+> Add a prominent "Live Isaac Sim" panel to the current Sim Sketch Artist app.
+> Embed an iframe whose src is the current configured backend API base URL plus
+> `/sim/view`. The current demo URL is
+> `https://twenty-barnes-framework-battle.trycloudflare.com/sim/view`.
+> This page already displays actual simulator frames, live/offline state,
+> SO-101 motion, ink and stroke progress. Give it a descriptive iframe title,
+> width 100%, and a responsive height of about 550px (400px on mobile).
+> When Sketch me or Try sample strokes successfully queues a job, scroll this
+> panel into view once, respecting reduced-motion preferences. Preserve the
+> current webcam/upload, Astra request, status polling and result display.
+> Keep the planned stroke canvas separately labelled as a preview. Do not
+> replace the actual simulator view with a Three.js arm, a stroke animation or
+> the prerecorded demo. Use the same backend URL as the rest of the app so the
+> iframe follows Connection settings. Build and publish the update.
+
+Minimal React embed, with `apiBase` supplied by the existing connection setting:
+
+```tsx
+<iframe
+  title="Live Isaac Sim SO-101 drawing camera"
+  src={`${apiBase.replace(/\/$/, '')}/sim/view`}
+  style={{ width: '100%', height: 550, border: 0, borderRadius: 16 }}
+/>
+```
+
+The iframe needs no OpenAI credentials or webcam permission. Its camera is the
+Isaac Sim renderer on Ubuntu. The outer Lovable app still handles the Mac webcam.
+Keep the backend, tunnel and simulator processes running. A restarted quick
+tunnel changes the base URL.

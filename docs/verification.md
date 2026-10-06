@@ -3,7 +3,7 @@
 Local environment: Ubuntu 24.04.4, NVIDIA GeForce RTX 5070 Ti (16 GB), driver
 580.178.04, Isaac Sim 5.1.0-rc.19. APIs were checked against this installation.
 
-- 23 backend tests pass: input validation, model request shape/retry/error
+- 44 backend tests pass: input validation, model request shape/retry/error
   handling, image limits and normalization, concurrent queue claims, path
   validation, previews and result rendering from dense measured trails.
 - React/TypeScript production build passes.
@@ -29,6 +29,19 @@ Local environment: Ubuntu 24.04.4, NVIDIA GeForce RTX 5070 Ti (16 GB), driver
   strokes drawn” with the real result image.
 - A 36.375-second H.264 viewport recording contains 873 frames of the SO-101
   drawing the synthetic Astra portrait. Early and late frames were checked.
+- Added a live Isaac viewport to the reference browser app and `/sim/view`.
+  The simulator publishes real JPEG frames at up to 5 fps; the browser polls
+  sequentially and flags images as disconnected after 5 seconds without updates.
+- Live HTTPS test: submitted the saved Astra portrait as a new job and fetched
+  44 distinct JPEG frames while all 13 strokes completed in 22.7 seconds.
+  Early, middle and final network-received frames were visually inspected:
+  they show different joint poses, accumulating ink, and the final portrait.
+  This checks the actual current simulator, not prerecorded video playback.
+- `/sim/view` and `/sim/frame` return HTTP 200 through the public tunnel; JPEGs
+  have no-store headers, and CORS accepts the published Lovable origin.
+- The reference frontend includes a live panel and scrolls it into view once
+  a drawing is queued. The new iframe has not yet been applied to the separate
+  Lovable deployment; browser automation is unavailable in the current task.
 
 ![Actual measured pen trace](demo/actual-pen-trail.png)
 

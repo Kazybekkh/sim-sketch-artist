@@ -7,6 +7,7 @@ import math
 import os
 from pathlib import Path
 import tempfile
+import time
 from uuid import uuid4
 import warnings
 
@@ -14,7 +15,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.concurrency import run_in_threadpool
@@ -27,6 +28,85 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env", override=False)
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
+LIVE_MAX_AGE = 5
+NO_CACHE = {"Cache-Control": "no-store, no-cache, max-age=0", "Pragma": "no-cache"}
+
+
+def live_status(directory: Path) -> dict:
+    """Only report a live camera when both its metadata and image are fresh."""
+    result = {"updated_at": None, "frame_id": None, "state": "idle", "job_id": None,
+              "stroke": 0, "total": 0, "mode": None, "error": None,
+              "online": False, "frame_url": "/sim/frame"}
+    try:
+        raw = read_json(directory / "status.json")
+        if not isinstance(raw, dict):
+            raise ValueError("invalid metadata")
+        timestamp = raw["updated_at"]
+        if type(timestamp) not in (int, float) or not math.isfinite(timestamp):
+            raise ValueError("invalid timestamp")
+        if any(type(raw[key]) is not int or raw[key] < 0 for key in ("frame_id", "stroke", "total")):
+            raise ValueError("invalid counters")
+        if raw["stroke"] > raw["total"] or raw["state"] not in {"idle", "running", "error"}:
+            raise ValueError("invalid state")
+        if raw["mode"] not in {"robot", "marker"}:
+            raise ValueError("invalid mode")
+        if raw["job_id"] is not None and not isinstance(raw["job_id"], str):
+            raise ValueError("invalid job")
+        if raw["error"] is not None and not isinstance(raw["error"], str):
+            raise ValueError("invalid error")
+        result.update({key: raw[key] for key in ("updated_at", "frame_id", "state", "job_id", "stroke", "total", "mode", "error")})
+        now = time.time()
+        frame = (directory / "frame.jpg").stat()
+        result["online"] = (0 <= now - timestamp <= LIVE_MAX_AGE
+                            and 0 <= now - frame.st_mtime <= LIVE_MAX_AGE and frame.st_size > 0)
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        result["error"] = "The simulator camera status is unavailable."
+    return result
+
+
+# A self-contained viewer can be embedded in Lovable without coupling its build
+# to the local React application. It serves only real, fresh simulator frames.
+LIVE_VIEW_HTML = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Isaac Sim — Sim Sketch Artist</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f6f5ef;color:#2c342f;font:14px system-ui,sans-serif}
+.viewer{padding:16px;min-height:100vh;display:flex;flex-direction:column;gap:12px}
+header,footer{display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:17px;margin:0}
+#badge{padding:7px 10px;border-radius:20px;background:#e8e7df;color:#726d5e;font-size:11px;white-space:nowrap}
+#badge.live{color:#365d37;background:#dcebcf}#badge.live:before{content:'● ';color:#5f9150}
+.camera{position:relative;flex:1;min-height:220px;background:#18201d;border-radius:10px;overflow:hidden;display:grid;place-items:center;aspect-ratio:16/9}
+#frame{display:block;width:100%;height:100%;max-height:calc(100vh - 108px);object-fit:contain}#frame[hidden]{display:none}
+#empty{color:#d5ddd3;text-align:center;padding:32px;line-height:1.6}#empty strong{display:block;color:#fff;font-size:18px;margin-bottom:6px}
+#stale{position:absolute;bottom:14px;left:14px;background:#342f28e8;color:#f6ead7;border:1px solid #a39170;padding:9px 12px;border-radius:6px;font-size:12px}
+[hidden]{display:none!important}footer{font-size:11px;color:#717d6a;flex-wrap:wrap}#error{margin:0;color:#945935;font-size:12px;line-height:1.5}
+@media(max-width:500px){.viewer{padding:10px}h1{font-size:14px}.camera{min-height:190px}#badge{font-size:10px}footer{font-size:10px}}
+</style></head><body><section class="viewer" aria-label="Live simulator camera">
+<header><h1>Isaac Sim · robot studio</h1><span id="badge" role="status">Connecting…</span></header>
+<div class="camera"><img id="frame" hidden alt="Live camera from the Isaac Sim drawing scene"><div id="empty"><strong>Connecting to Isaac Sim</strong>The robot camera will appear here when the simulator is ready.</div><div id="stale" hidden>Last received frame · live camera disconnected</div></div>
+<footer><span id="mode">Actual simulator camera</span><span id="progress">Waiting for simulator</span></footer><p id="error" role="alert" hidden></p>
+</section><script>
+const frame=document.getElementById('frame'), badge=document.getElementById('badge'), empty=document.getElementById('empty'), stale=document.getElementById('stale'), mode=document.getElementById('mode'), progress=document.getElementById('progress'), error=document.getElementById('error');
+let currentUrl=null, lastFrame=0, lastId=null, running=true, timer=0, controller=null;
+function offline(message){badge.textContent=currentUrl?'Camera disconnected':'Simulator offline';badge.className='';stale.hidden=!currentUrl;empty.hidden=!!currentUrl;progress.textContent='Reconnecting automatically';if(!currentUrl)empty.textContent=message||'Waiting for the Isaac Sim camera. The simulator must be running.';}
+async function poll(){controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),4500);try{
+const response=await fetch('/sim/status',{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error('Cannot reach the simulator camera.');const status=await response.json();if(!running)return;
+mode.textContent=status.mode==='marker'?'Marker fallback · no robot arm control':status.mode==='robot'?'SO-101 · robot simulation':'Actual simulator camera';
+progress.textContent=status.state==='running'?'Drawing stroke '+status.stroke+' / '+status.total:status.state==='error'?'Simulator error':status.online?'Robot ready':'Waiting for simulator';
+error.hidden=!status.error;error.textContent=status.error||'';
+if(!status.online){offline();return;}
+const image=await fetch('/sim/frame?t='+Date.now(),{cache:'no-store',signal:controller.signal});if(!image.ok)throw Error('Camera frame is unavailable.');const blob=await image.blob();if(!running)return;
+const nextUrl=URL.createObjectURL(blob);try{const decoded=new Image();decoded.src=nextUrl;await decoded.decode();}catch(cause){URL.revokeObjectURL(nextUrl);throw cause;}if(!running){URL.revokeObjectURL(nextUrl);return;}
+const previous=currentUrl;currentUrl=nextUrl;frame.src=nextUrl;frame.hidden=false;empty.hidden=true;if(previous)URL.revokeObjectURL(previous);
+if(status.frame_id!==lastId){lastFrame=performance.now();lastId=status.frame_id;}
+if(performance.now()-lastFrame<5000){badge.textContent='Live Isaac Sim';badge.className='live';stale.hidden=true;}else offline();
+}catch(cause){if(running)offline('Cannot reach the Isaac Sim camera. Reconnecting automatically…');}finally{clearTimeout(timeout);if(running)timer=setTimeout(poll,400);}}
+function checkFreshness(){if(lastFrame&&performance.now()-lastFrame>5000)offline();}
+let freshness=setInterval(checkFreshness,1000);
+window.addEventListener('pagehide',()=>{running=false;controller?.abort();clearTimeout(timer);clearInterval(freshness);if(currentUrl)URL.revokeObjectURL(currentUrl);});poll();
+window.addEventListener('pageshow',event=>{if(event.persisted){running=true;currentUrl=null;lastFrame=0;lastId=null;frame.hidden=true;freshness=setInterval(checkFreshness,1000);poll();}});
+</script></body></html>"""
 
 
 def normalize_image(raw: bytes) -> str:
@@ -96,6 +176,28 @@ def create_app(*, jobs_dir: str | Path | None = None, preview_dir: str | Path | 
                 "astra_configured": bool(os.getenv("OPENAI_API_KEY", "").strip() and os.getenv("ASTRA_MODEL", "").strip()),
                 "astra_model": os.getenv("ASTRA_MODEL", "").strip() or None,
                 "frontend_built": (frontend / "index.html").is_file()}
+
+    @app.get("/sim/status")
+    def simulator_status():
+        return JSONResponse(live_status(app.state.jobs_dir / ".live"), headers=NO_CACHE)
+
+    @app.get("/sim/frame")
+    def simulator_frame():
+        directory = app.state.jobs_dir / ".live"
+        if not live_status(directory)["online"]:
+            return JSONResponse({"detail": "The simulator camera is offline or its last frame is stale."},
+                                status_code=503, headers=NO_CACHE)
+        try:
+            # Read the atomic snapshot now, avoiding a FileResponse stat/open race.
+            image = (directory / "frame.jpg").read_bytes()
+        except OSError:
+            return JSONResponse({"detail": "The simulator frame is temporarily unavailable."},
+                                status_code=503, headers=NO_CACHE)
+        return Response(image, media_type="image/jpeg", headers=NO_CACHE)
+
+    @app.get("/sim/view", response_class=HTMLResponse)
+    def simulator_view():
+        return HTMLResponse(LIVE_VIEW_HTML, headers={**NO_CACHE, "Content-Security-Policy": "frame-ancestors *"})
 
     @app.post("/portrait")
     async def portrait(image: UploadFile = File(...)):

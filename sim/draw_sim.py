@@ -25,11 +25,16 @@ def arguments():
     parser.add_argument("--sample", nargs="?", const="builtin", help="Enqueue the built-in smile, or a supplied drawing JSON file")
     parser.add_argument("--mode", choices=("robot", "marker"), default="robot")
     parser.add_argument("--record", type=Path, help="Record this --once run's Isaac viewport to a new MP4 file")
+    parser.add_argument("--no-live", action="store_true", help="Disable current viewport JPEG publishing")
+    parser.add_argument("--playback-speed", type=float, default=1.0,
+                        help="Simulation-time/wall-time ratio while drawing (default 1; 0 disables pacing)")
     result = parser.parse_args()
     if result.record and not result.once:
         parser.error("--record requires --once so the recording has a bounded end")
     if result.record and result.record.exists():
         parser.error("--record output already exists; choose a new file")
+    if not math.isfinite(result.playback_speed) or result.playback_speed < 0:
+        parser.error("--playback-speed must be a finite non-negative number")
     return result
 
 
@@ -102,11 +107,27 @@ def main():
 
     world = World(stage_units_in_meters=1.0, physics_dt=config["physics_dt"], rendering_dt=1 / 60)
     recorder = None
+    live = None
+    pacing_active = False
+    step_deadline = None
 
     def simulation_step(render=True):
+        nonlocal step_deadline
         world.step(render=render)
+        if render and live is not None:
+            live.tick()
         if render and recorder is not None:
             recorder.capture()
+        if pacing_active and args.playback_speed:
+            now = time.monotonic()
+            step_deadline = (step_deadline if step_deadline is not None else now) + config["physics_dt"] / args.playback_speed
+            if step_deadline > now:
+                time.sleep(step_deadline - now)
+            else:
+                # Slow rendering should not lead to a later burst of catch-up motion.
+                step_deadline = now
+        else:
+            step_deadline = None
 
     stage = world.stage
     center = np.asarray(config["page_center"], dtype=float)
@@ -131,7 +152,7 @@ def main():
     sun = UsdLux.DistantLight.Define(stage, "/World/KeyLight")
     sun.CreateIntensityAttr(1800)
     sun.AddRotateXYZOp().Set(Gf.Vec3f(30, -25, -25))
-    set_camera_view(eye=np.array([.45, -.58, .50]), target=np.array([.0, -.17, .12]))
+    set_camera_view(eye=np.array([.37, -.54, .44]), target=np.array([.0, -.17, .13]))
 
     robot = gripper = kinematics = None
     if args.mode == "robot":
@@ -245,6 +266,9 @@ def main():
         curve.CreateDisplayColorAttr([Gf.Vec3f(.018, .026, .036)])
 
     marker_position = center + [0, 0, config["pen_lift_m"]]
+    if not args.no_live:
+        from sim.live_viewport import LiveViewport
+        live = LiveViewport(args.jobs_dir, mode=args.mode)
     print(f"SIM_READY mode={args.mode} jobs={args.jobs_dir}", flush=True)
     current_job = None
     had_error = False
@@ -260,6 +284,10 @@ def main():
             job_id = current_job["job_id"]
             destination = job_path(args.jobs_dir, job_id)
             started = time.monotonic()
+            pacing_active = True
+            step_deadline = None
+            if live is not None:
+                live.set_state(state="running", job_id=job_id, total=len(current_job["strokes"]))
             try:
                 validate(current_job)
                 if args.record:
@@ -285,6 +313,9 @@ def main():
                     trails.append([normalized(p) for p in actual_points])
                     atomic_write_json(destination / "trail.json", {"title": current_job["title"], "strokes": trails})
                     update_job(args.jobs_dir, job_id, stroke=index + 1)
+                    if live is not None:
+                        live.set_state(state="running", job_id=job_id, stroke=index + 1,
+                                       total=len(current_job["strokes"]))
                 travel(measured_tip() + [0, 0, config["pen_lift_m"]])
                 render_result(trails, destination / "result.png")
                 atomic_write_json(destination / "execution.json", {
@@ -309,6 +340,9 @@ def main():
                     finally:
                         finished_recorder.close()
                 update_job(args.jobs_dir, job_id, status="done")
+                if live is not None:
+                    live.set_state(state="idle", job_id=job_id, stroke=len(current_job["strokes"]),
+                                   total=len(current_job["strokes"]))
                 print(f"JOB_DONE {job_id} mode={args.mode} result={destination / 'result.png'}", flush=True)
             except Exception as error:
                 if recorder is not None:
@@ -316,7 +350,10 @@ def main():
                     recorder = None
                 had_error = True
                 update_job(args.jobs_dir, job_id, status="error", error=str(error))
+                if live is not None:
+                    live.set_state(state="error", job_id=job_id, total=len(current_job["strokes"]), error=error)
                 print(f"JOB_ERROR {job_id}: {error}", file=sys.stderr, flush=True)
+            pacing_active = False
             current_job = None
             if args.once:
                 break
@@ -324,6 +361,8 @@ def main():
         if current_job:
             update_job(args.jobs_dir, current_job["job_id"], status="error", error="Simulator worker interrupted")
     finally:
+        if live is not None:
+            live.close()
         app.close()
         lock.close()
     return 1 if had_error else 0

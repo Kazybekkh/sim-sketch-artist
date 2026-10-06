@@ -10,6 +10,7 @@ export default defineConfig({
       '/status': 'http://127.0.0.1:8000',
       '/result': 'http://127.0.0.1:8000',
       '/ready': 'http://127.0.0.1:8000',
+      '/sim': 'http://127.0.0.1:8000',
     },
   },
 });

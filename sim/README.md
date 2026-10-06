@@ -24,6 +24,20 @@ normalized page coordinates. `execution.json` includes the mode and measured
 world coordinates. `scene.png` captures the Isaac viewport when available.
 The worker remains open after jobs unless `--once` is supplied.
 
+While the worker is open, `jobs/.live/frame.jpg` contains a fresh capture of the
+actual Isaac rendered viewport at up to 5 fps. `jobs/.live/status.json` records
+the capture timestamp, increasing frame ID, robot/marker mode, current job,
+stroke progress, and execution state. A single capture is allowed in flight;
+JPEG encoding runs in a bounded background worker and publishes files by atomic
+rename. The live feed includes idle frames so clients can distinguish a running
+simulator from a stale screenshot. It never uses the result PNG or demo video.
+Use `--no-live` to disable capture for isolated headless tests.
+
+Drawing is paced at real simulation time by default, so the arm's physical
+motion is visible in the browser. `--playback-speed 2` runs at up to twice real
+time, and `--playback-speed 0` disables pacing for tests. Slow rendering naturally
+reduces playback speed; poses and measured ink are still produced by PhysX.
+
 An optional bounded video captures only the Isaac viewport, then uses `ffmpeg`
 to encode an MP4. The output must be a new path. This feature requires `--once`:
 
