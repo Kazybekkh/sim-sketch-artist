@@ -14,12 +14,11 @@ Paste this into the existing Lovable project:
 > SO-101 motion, ink and stroke progress, plus drag-to-orbit, Shift-drag pan,
 > scroll zoom and camera presets. Allow fullscreen. Give it a descriptive iframe title,
 > width 100%, and a responsive height of about 550px (400px on mobile).
-> When Sketch me or Try sample strokes successfully queues a job, scroll this
+> When Sketch me successfully queues a job, scroll this
 > panel into view once, respecting reduced-motion preferences. Preserve the
 > current webcam/upload, Astra request, status polling and result display.
 > Keep the planned stroke canvas separately labelled as a preview. Do not
-> replace the actual simulator view with a Three.js arm, a stroke animation or
-> the prerecorded demo. Use the same backend URL as the rest of the app so the
+> replace the actual simulator view with fabricated frames or prerecorded media. Use the same backend URL as the rest of the app so the
 > iframe follows Connection settings. Build and publish the update.
 
 Minimal React embed, with `apiBase` supplied by the existing connection setting:

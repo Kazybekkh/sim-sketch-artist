@@ -22,7 +22,7 @@ def arguments():
     parser.add_argument("--jobs-dir", type=Path, default=Path(os.environ.get("JOBS_DIR", ROOT / "jobs")))
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--once", action="store_true", help="Exit after one queued job, or immediately if empty")
-    parser.add_argument("--sample", nargs="?", const="builtin", help="Enqueue the built-in smile, or a supplied drawing JSON file")
+    parser.add_argument("--drawing", type=Path, help="Enqueue a drawing from a supplied JSON file")
     parser.add_argument("--mode", choices=("robot", "marker"), default="robot")
     parser.add_argument("--record", type=Path, help="Record this --once run's Isaac viewport to a new MP4 file")
     parser.add_argument("--no-live", action="store_true", help="Disable current viewport JPEG publishing")
@@ -36,15 +36,6 @@ def arguments():
     if not math.isfinite(result.playback_speed) or result.playback_speed < 0:
         parser.error("--playback-speed must be a finite non-negative number")
     return result
-
-
-def sample():
-    outline = [[0.5 + 0.32 * math.cos(t), 0.47 + 0.37 * math.sin(t)]
-               for t in [i * 2 * math.pi / 24 for i in range(25)]]
-    smile = [[0.5 + 0.19 * math.cos(t), 0.56 + 0.12 * math.sin(t)]
-             for t in [i * math.pi / 10 for i in range(11)]]
-    return {"title": "SO-101 sample smile (no Astra)", "strokes": [outline,
-        [[0.32, 0.36], [0.39, 0.36]], [[0.61, 0.36], [0.68, 0.36]], smile]}
 
 
 def validate(job):
@@ -83,11 +74,11 @@ def main():
     except BlockingIOError:
         raise SystemExit("A simulator worker already owns this jobs directory.")
     config = json.loads(args.config.read_text())
-    if args.sample:
-        drawing = sample() if args.sample == "builtin" else json.loads(Path(args.sample).read_text())
+    if args.drawing:
+        drawing = json.loads(args.drawing.read_text())
         drawing = {key: drawing[key] for key in ("title", "strokes")}
         validate(drawing)
-        print("SAMPLE_JOB=" + create_job(args.jobs_dir, drawing), flush=True)
+        print("DRAWING_JOB=" + create_job(args.jobs_dir, drawing), flush=True)
     asset = ROOT / config["robot_asset"]
     if args.mode == "robot" and not asset.is_file():
         from sim.fetch_assets import fetch

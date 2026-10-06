@@ -3,19 +3,16 @@
 Checked on 6 October 2026. This records provenance; it does not relicense
 third-party software or assets.
 
-## New work for this event
+## Application code
 
-This isolated repository contains the application built for the hackathon:
-`backend/` implements the Astra request, validation, previews and job API;
-`sim/` contains our scene setup, inverse kinematics, drawing worker and
-measured-path recording; `frontend/` is our reference browser implementation;
-`samples/`, `tests/`, `scripts/` and project documentation support that workflow.
-The initial source commit is `1baebe7`, dated 6 October 2026 at 19:18 BST.
+`backend/` implements the model request, validation, previews and job API.
+`sim/` contains the scene setup, inverse kinematics, drawing worker and measured
+pen-path recording. `frontend/` contains the browser implementation. Tests,
+scripts and documentation support deployment with each operator's own resources.
 
-The [Lovable project](https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e)
-is the separately created and published user-facing app. Its generated source
-is not currently represented by `frontend/`, which is a reference implementation.
-Codex assisted the event development. Astra generates stroke plans at runtime.
+Codex assisted development. Astra generates stroke plans at runtime. The Lovable
+integration prompts are in this repository; a separately created Lovable project
+has its own generated source and deployment.
 
 ## Existing components and assets
 
@@ -24,7 +21,6 @@ Codex assisted the event development. Astra generates stroke plans at runtime.
 | Isaac Sim / Omniverse / PhysX | NVIDIA simulator and runtime, installed separately; not authored here or redistributed in this repository. |
 | SO-101 robot geometry and articulation | RobotStudio asset from NVIDIA's versioned Isaac Sim 5.1 collection, downloaded by `sim/fetch_assets.py`; `sim/assets/` is excluded from Git. |
 | Python and browser libraries | Third-party dependencies declared in `backend/requirements.txt`, `requirements.lock.txt`, and `frontend/package-lock.json`; their own licenses apply. |
-| Portrait test media and screenshots | The existing demo uses the documented synthetic test portrait. Screenshots and viewport recording are outputs of this project's simulation, including the third-party robot model. They do not show a verified Mac webcam session. |
 
 The robot download consists of `so101_new_calib.usd` and the `base`, `physics`,
 `robot` and `sensor` configuration USD layers, under this
@@ -47,8 +43,8 @@ is Apache 2.0. The 5.1 catalog does not state that per-asset license, so this
 is supporting provenance rather than confirmation of the exact downloaded
 5.1 files' license. Those asset files remain excluded from the public source.
 
-Only use portrait inputs the demonstrator has permission to process and show.
+Use portrait inputs you have permission to process and show.
 No private input photos, secrets, downloaded simulator assets, or installed
 dependency trees are included in the repository. The arm asset and NVIDIA's
-simulation/rendering capabilities must be credited as existing components in
-the submission; the new contribution is the application and controller around them.
+simulation/rendering capabilities are existing components; this project adds the
+application and controller around them.

@@ -3,24 +3,14 @@
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
-**Lovable app:** https://sim-sketch-artist.lovable.app/
-
-**Lovable project:** https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e
-
 **Connect your own setup:** this public repository supplies the code, not a shared
-GPU or model-credit service. The author's temporary demo tunnel has been stopped.
-Each operator supplies their own Isaac Sim machine, OpenAI API credentials and
+GPU or model-credit service. Each operator supplies their own Isaac Sim machine, OpenAI API credentials and
 model access. Follow the [self-hosting handoff](docs/self-hosting.md).
 
 Run the reference studio at `http://localhost:8000` on your simulator host, or
 connect a browser frontend to your own protected backend address using Connection
 settings. The interactive viewer is available at your backend's `/sim/view` path.
 Codex helped build the project; it is not required while the app runs.
-
-![SO-101 drawing an Astra-generated test portrait](docs/demo/isaac-portrait.png)
-
-The image above is an actual Isaac Sim run using a synthetic test portrait.
-See [verification notes](docs/verification.md) for what has been tested.
 
 ```text
 Mac webcam / upload in Lovable
@@ -78,7 +68,7 @@ Its live camera shows actual rendered frames from the running Isaac Sim worker,
 including the SO-101's motion and ink. The camera publisher captures at up to
 5 frames per second; the browser requests frames sequentially about every
 400 ms. Disconnected or stale frames are clearly labelled. This is a live
-simulator view, separate from the planned stroke preview and recorded demo video.
+simulator view, separate from the planned stroke preview.
 
 Drag the camera image to orbit, scroll to zoom, and Shift-drag or right-drag to
 pan. The **Whole scene**, **Paper close-up** and **Top view** presets move the
@@ -95,32 +85,29 @@ needed and kept out of Git. See [sim/README.md](sim/README.md) for drawing modes
 paper calibration and testing. The default is the robot; the explicit marker
 fallback is a visualization and is labelled as such.
 
-## Connect the Mac and Lovable
+## Connect your browser and Lovable
 
-With `cloudflared` installed, keep this running on Ubuntu:
+Use your own protected backend address. For a remote GPU machine, follow the
+private SSH forwarding or authenticated gateway options in the
+[self-hosting guide](docs/self-hosting.md). Keep the backend and simulator
+running while using the app.
 
-```bash
-./scripts/tunnel.sh
-```
+To create a Lovable frontend, use [the app prompt](docs/lovable-prompt.md) and
+[live-view integration](docs/lovable-live-view.md). Configure that app's
+Connection settings with your backend's HTTPS address. Keep model credentials
+only on the backend machine.
 
-It prints a temporary HTTPS URL. Open its `/health` path on your Mac to verify
-connectivity. The same URL also serves the reference app, so you can try webcam
-capture immediately. A quick tunnel changes URL when restarted and stops when
-its process stops. Keep Ubuntu awake with the backend, tunnel and simulator running.
+The `frontend/` directory runs independently and includes the interactive
+simulator view. A separately hosted Lovable project must be connected and
+published in that project; changes here do not update it automatically.
 
-Create or open the Lovable project and paste [docs/lovable-prompt.md](docs/lovable-prompt.md).
-Set `VITE_API_BASE_URL` or the app's Connection setting to the HTTPS tunnel URL.
-Use the published HTTPS app on your Mac and grant it webcam permission. Its
-requests call this Ubuntu API directly. API keys belong only in Ubuntu's `.env`.
+## Frontend development
 
-The linked Lovable app has been created, published and tested against this backend.
-The `frontend/` directory is a separately runnable reference implementation.
-The new live camera is available in this reference app and as `/sim/view` for
-embedding in Lovable; see [the Lovable live-view instructions](docs/lovable-live-view.md).
-The live camera addition has not yet been applied to the hosted Lovable project.
-Lovable supports exporting a new project
-to GitHub and syncing subsequent code changes, but not directly importing an
-existing repository as a new project.
+The production backend serves the built frontend from the same address. For
+Vite development, copy `frontend/.env.example` to `frontend/.env.local` and set
+`DEV_API_URL` to your backend's address to enable the development proxy. Set
+`VITE_API_BASE_URL` only when browser requests should use a separate backend
+origin directly. Then run `npm --prefix frontend run dev`.
 
 ## API and drawing format
 
@@ -128,7 +115,7 @@ existing repository as a new project.
 | --- | --- |
 | `GET /health` | `{"ok":true}` |
 | `POST /portrait` | Multipart `image` (JPEG/PNG/WebP, max 10 MB); returns `title`, `strokes`, `preview_url` |
-| `POST /draw` | JSON drawing below; returns `{"job_id":"uuid"}` with HTTP 202 |
+| `POST /draw` | JSON with `title` and `strokes`; returns `{"job_id":"uuid"}` with HTTP 202 |
 | `GET /status/{job_id}` | `state`, `stroke`, `total`, `error` |
 | `GET /trail/{job_id}` | Measured normalized pen-tip strokes |
 | `GET /result/{job_id}` | PNG rendering of the measured trail |
@@ -137,9 +124,8 @@ existing repository as a new project.
 | `POST /sim/camera` | Bounded `yaw`, `pitch`, `distance`, `target`; HTTP 202 with `command_id` |
 | `GET /sim/view` | Interactive camera page, ready to embed in Lovable |
 
-```json
-{"title":"Diagonal","strokes":[[[0.2,0.2],[0.8,0.8]]]}
-```
+A drawing contains a `title` string and `strokes`, an array of polylines. Each
+polyline contains `[x, y]` points supplied by Astra or by the caller.
 
 Camera commands are atomically replaced with the newest requested pose. The
 worker acknowledges `camera_command_id` in `/sim/status` only after applying
@@ -162,35 +148,25 @@ the simulator and submit a new job if a run was interrupted.
 ```bash
 .venv/bin/python -m pytest tests -q
 npm --prefix frontend run build
-./scripts/sim.sh --sample samples/smiley.json --once
 ```
 
-Use **Try sample strokes** in the browser to test the queue and simulator without
-spending an API request. Then test your own photo with **Sketch me**. A completed
-sample checks robot drawing, not Astra's likeness quality or Mac camera permissions.
-Record a complete Mac-to-simulator run for the submission after both are verified.
+To verify the full pipeline, start your backend and simulator, select your own
+photo, and use **Sketch me**. Confirm the job progresses from queued to done,
+the arm moves in the live view, and the result renders its measured pen trail.
+This uses the API credentials and GPU configured on your backend.
 
-## Demo scope and data
+## Access and data
 
-This is a hackathon prototype with permissive CORS and no user accounts.
-The source is publicly visible; a shared hosted service is not provided. Each
-operator pays for their own GPU and API use. Anyone who can reach an unprotected
-backend can submit jobs and consume its configured API budget. Keep the backend
-private or place it behind authenticated access; an unguessable tunnel URL is
-not authentication. The tunnel command above is for a temporary supervised demo,
-not an unattended public deployment. Input photos are processed in memory and sent to OpenAI;
-the app does not save them locally. Derived previews, strokes and results remain
-in ignored runtime folders. No secrets, personal photos or downloaded robot
-assets are included in the source repository.
+Each operator pays for their own GPU and API use. This backend has permissive
+CORS and no user accounts. Keep it private or behind authenticated access;
+anyone who can reach an unprotected backend can queue work and spend its API
+budget. A temporary tunnel URL is not authentication.
 
-Demo video: [36-second SO-101 drawing recording](docs/demo/isaac-drawing.mp4).
-It uses the synthetic Astra test portrait, not a webcam session. A recording with
-the user's Mac webcam is still pending.
-
-For the supplied event criteria, use the [submission draft and 60-second
-narration](docs/submission.md). The existing arm-only recording does not yet
-satisfy the complete one-minute screen-and-audio demo requirement.
-See [attribution](docs/attribution.md) for the event contribution and dependencies.
+Input photos are processed in memory and sent to OpenAI. Derived previews,
+strokes and results stay in ignored runtime folders. The repository includes
+no input photos, generated portraits, saved drawings, prerecorded videos or
+model credentials. See [attribution](docs/attribution.md) for third-party
+components and robot asset provenance.
 
 ## References
 

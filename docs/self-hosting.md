@@ -64,9 +64,10 @@ directory. Both default to this checkout's `jobs/`; if you set `JOBS_DIR` in
 `.env`, use the same absolute path for both processes. Robot assets download
 when needed and remain outside Git; their own terms apply.
 
-Open `http://localhost:8000` in a browser on the backend machine. Use **Try sample
-strokes** first: it runs a real robot drawing using your GPU, with no Astra API
-request. Then try a photo with **Sketch me** to test your own model credentials.
+Open `http://localhost:8000` in a browser on the backend machine. Select your own
+photo and use **Sketch me** to test portrait generation and robot drawing with
+your model credentials and GPU. No drawing is generated or queued until you
+request one.
 The interactive camera is also available at `http://localhost:8000/sim/view`.
 Keep both terminal processes running while using the app; no Codex session is
 required.
@@ -97,7 +98,7 @@ together behind your gateway. To use a separately hosted Lovable frontend, put
 your own HTTPS backend URL in **Connection settings** and configure your
 gateway for that browser's authenticated API and iframe requests. The current
 frontend does not implement gateway sign-in, so that integration must be
-configured and verified separately. Never use another operator's demo URL.
+configured and verified separately. Use only a backend you control or have permission to access.
 
 The live viewer embed uses the same configured backend URL plus `/sim/view`;
 see [the Lovable integration instructions](lovable-live-view.md). Changing the

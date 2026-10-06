@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, Camera, Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, Camera, Check, ChevronDown, CircleHelp, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
 import LiveSimulator from './LiveSimulator';
 import { API_STORAGE, initialApi } from './apiConfig';
 
@@ -8,16 +8,6 @@ type Portrait = { title: string; strokes: Point[][]; preview_url?: string };
 type JobStatus = { state: 'queued' | 'running' | 'done' | 'error'; stroke: number; total: number; error: string | null };
 type Phase = 'idle' | 'generating' | 'submitting' | 'queued' | 'running' | 'done' | 'error' | 'poll_error';
 type Photo = { blob: Blob; url: string; name: string };
-
-const SAMPLE: Portrait = {
-  title: 'Sample smiley',
-  strokes: [
-    Array.from({ length: 25 }, (_, i) => [0.5 + 0.32 * Math.cos(i * Math.PI / 12), 0.5 + 0.32 * Math.sin(i * Math.PI / 12)] as Point),
-    [[0.36, 0.4], [0.39, 0.37], [0.42, 0.4]],
-    [[0.58, 0.4], [0.61, 0.37], [0.64, 0.4]],
-    [[0.34, 0.57], [0.38, 0.63], [0.44, 0.67], [0.5, 0.68], [0.56, 0.67], [0.62, 0.63], [0.66, 0.57]],
-  ],
-};
 
 function apiUrl(base: string, path: string) { return `${base}${path}`; }
 
@@ -81,16 +71,6 @@ function StrokeCanvas({ portrait }: { portrait: Portrait }) {
   return <canvas ref={canvas} width={1000} height={1000} className="stroke-canvas" role="img" aria-label={`Stroke preview: ${portrait.title}`} />;
 }
 
-function EmptyDrawing() {
-  return <svg className="empty-drawing" viewBox="0 0 240 240" fill="none" aria-hidden="true">
-    <path d="M65 205C72 184 91 175 105 174M141 174C161 178 176 188 182 205M91 150L92 171C103 183 132 184 146 170L147 145" />
-    <path d="M77 105C70 73 86 47 112 44C135 34 167 57 164 91L158 125C153 151 137 166 120 167C99 166 84 146 80 120C68 122 66 103 73 100L81 102" />
-    <path d="M80 98C93 92 102 75 105 67C118 88 144 91 161 92M91 111C96 107 102 107 107 110M133 109C138 105 144 107 148 110M121 108L114 130L123 133M105 146C114 151 125 151 137 143" />
-    <path d="M101 116L100 119M139 115L139 118M91 56C70 61 60 83 66 107M122 39C150 36 177 60 172 92" />
-    <path className="accent-line" d="M45 155L50 144M39 148L57 152M185 45L184 60M177 51L192 53" />
-  </svg>;
-}
-
 export default function App() {
   const [api, setApi] = useState(initialApi);
   const [apiDraft, setApiDraft] = useState(api);
@@ -103,7 +83,6 @@ export default function App() {
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [portrait, setPortrait] = useState<Portrait | null>(null);
-  const [samplePortrait, setSamplePortrait] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
@@ -241,16 +220,15 @@ export default function App() {
     });
   }
 
-  async function sketch(sample = false, redraw = false) {
-    if (operationPending || (!photo && !sample && !redraw)) return;
+  async function sketch(redraw = false) {
+    if (operationPending || (redraw ? !portrait : !photo)) return;
     setError('');
     setJobId(null);
     setStatus(null);
     setResultError(false);
-    if (!redraw) setSamplePortrait(sample);
     stopCamera();
     try {
-      let next = sample ? SAMPLE : redraw ? portrait : null;
+      let next = redraw ? portrait : null;
       if (!next) {
         setPhase('generating');
         setPortrait(null);
@@ -320,23 +298,23 @@ export default function App() {
           <div className="panel-heading"><div><span className="step-number">02</span><h2>The interpretation</h2></div><span className={`panel-tag ${phase === 'done' ? 'complete-tag' : ''}`}>{phase === 'done' ? 'ROBOT RESULT' : portrait ? 'STROKE PREVIEW' : 'THE CANVAS'}</span></div>
           <div className={`drawing-stage ${portrait ? 'has-drawing' : ''}`}>
             <div className="paper-corner corner-one" /><div className="paper-corner corner-two" />
-            {phase === 'done' && !resultError ? <img className="result-image" src={resultUrl} alt="Completed sketch rendered from the robot's recorded pen trail" onError={() => setResultError(true)} /> : portrait ? <StrokeCanvas portrait={portrait} /> : <div className={`drawing-empty ${phase === 'generating' ? 'thinking' : ''}`}><EmptyDrawing /><span>{phase === 'generating' ? 'Finding the lines that make you, you…' : 'A blank page. A thousand possibilities.'}</span>{phase === 'generating' && <span className="generating-indicator"><LoaderCircle size={15} className="spin" />Astra is sketching your portrait</span>}</div>}
+            {phase === 'done' && !resultError ? <img className="result-image" src={resultUrl} alt="Completed sketch rendered from the robot's recorded pen trail" onError={() => setResultError(true)} /> : portrait ? <StrokeCanvas portrait={portrait} /> : <div className="drawing-empty"><PenLine className="drawing-ready-icon" size={42} strokeWidth={1.25} aria-hidden="true" /><span>{phase === 'generating' ? 'Finding the lines that make you, you…' : 'A blank page. A thousand possibilities.'}</span>{phase === 'generating' && <span className="generating-indicator"><LoaderCircle size={15} className="spin" />Astra is sketching your portrait</span>}</div>}
             {portrait && <div className="drawing-caption"><span>{portrait.title}</span><span>{portrait.strokes.length} strokes</span></div>}
           </div>
-          <div className="drawing-toolbar"><span className="tiny-ink-dot" /><span>{phase === 'done' ? resultError ? 'Result image unavailable. Showing planned strokes.' : 'Drawn from the recorded simulator pen trail' : portrait ? samplePortrait ? 'Sample strokes · simulator result follows' : 'Astra’s planned strokes · simulator result follows' : 'Astra imagines. Isaac Sim brings it to life.'}</span>{phase === 'done' && <a className="icon-button" href={resultUrl} target="_blank" rel="noreferrer" aria-label="Open the completed robot sketch"><ArrowDownToLine size={18} /></a>}</div>
+          <div className="drawing-toolbar"><span className="tiny-ink-dot" /><span>{phase === 'done' ? resultError ? 'Result image unavailable. Showing planned strokes.' : 'Drawn from the recorded simulator pen trail' : portrait ? 'Astra’s planned strokes · simulator result follows' : 'Astra imagines. Isaac Sim brings it to life.'}</span>{phase === 'done' && <a className="icon-button" href={resultUrl} target="_blank" rel="noreferrer" aria-label="Open the completed robot sketch"><ArrowDownToLine size={18} /></a>}</div>
         </div>
       </section>
 
       <section className="action-strip" aria-label="Sketch controls">
-        <div className="action-copy" aria-live="polite"><div className={`status-icon ${phase === 'done' ? 'success' : ''}`}>{busy ? <LoaderCircle size={20} className="spin" /> : phase === 'done' ? <Check size={20} /> : <Sparkles size={20} strokeWidth={1.5} />}</div><div><h3>{statusTitle}</h3><p>{phase === 'generating' ? 'Turning your photo into a simple line portrait.' : phase === 'submitting' ? 'Adding your strokes to the drawing queue.' : phase === 'queued' ? longWait ? 'Still queued. Start the Isaac Sim worker on your simulator machine.' : 'Your strokes are queued on your connected simulator.' : phase === 'running' ? `Drawing stroke ${status?.stroke ?? 0} of ${status?.total ?? portrait?.strokes.length ?? 0}.` : phase === 'done' ? 'Your finished sketch is ready above.' : phase === 'poll_error' ? 'Resume checking this drawing when the connection is back.' : phase === 'error' ? 'Check the message below, then retry when you’re ready.' : astraConfigured === false ? 'Configure your own Astra credentials on your backend, or try sample strokes below.' : photo ? 'All set. Let’s turn this moment into a sketch.' : 'Use your webcam or choose a photo to get started.'}</p>{phase === 'running' && <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Robot drawing progress"><span style={{ width: `${progress}%` }} /></div>}</div></div>
-        {phase === 'poll_error' ? <button className="button primary" onClick={() => { setError(''); setPhase('queued'); setPollRevision(value => value + 1); }}><RefreshCw size={17} />Resume checking</button> : phase === 'done' || (phase === 'error' && portrait) ? <button className="button primary" onClick={() => void sketch(false, true)}><RefreshCw size={17} />Draw again</button> : <button className="button primary" onClick={() => void sketch()} disabled={!photo || operationPending || astraConfigured === false}>{busy ? <LoaderCircle className="spin" size={18} /> : <PenLine size={18} />}{busy ? phase === 'generating' ? 'Imagining…' : phase === 'running' ? 'Drawing…' : 'In the queue…' : 'Sketch me'}{!busy && <ArrowRight size={18} />}</button>}
+        <div className="action-copy" aria-live="polite"><div className={`status-icon ${phase === 'done' ? 'success' : ''}`}>{busy ? <LoaderCircle size={20} className="spin" /> : phase === 'done' ? <Check size={20} /> : <Sparkles size={20} strokeWidth={1.5} />}</div><div><h3>{statusTitle}</h3><p>{phase === 'generating' ? 'Turning your photo into a simple line portrait.' : phase === 'submitting' ? 'Adding your strokes to the drawing queue.' : phase === 'queued' ? longWait ? 'Still queued. Start the Isaac Sim worker on your simulator machine.' : 'Your strokes are queued on your connected simulator.' : phase === 'running' ? `Drawing stroke ${status?.stroke ?? 0} of ${status?.total ?? portrait?.strokes.length ?? 0}.` : phase === 'done' ? 'Your finished sketch is ready above.' : phase === 'poll_error' ? 'Resume checking this drawing when the connection is back.' : phase === 'error' ? 'Check the message below, then retry when you’re ready.' : astraConfigured === false ? 'Configure your own Astra credentials on your backend to generate a portrait.' : photo ? 'All set. Let’s turn this moment into a sketch.' : 'Use your webcam or choose a photo to get started.'}</p>{phase === 'running' && <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Robot drawing progress"><span style={{ width: `${progress}%` }} /></div>}</div></div>
+        {phase === 'poll_error' ? <button className="button primary" onClick={() => { setError(''); setPhase('queued'); setPollRevision(value => value + 1); }}><RefreshCw size={17} />Resume checking</button> : phase === 'done' || (phase === 'error' && portrait) ? <button className="button primary" onClick={() => void sketch(true)}><RefreshCw size={17} />Draw again</button> : <button className="button primary" onClick={() => void sketch()} disabled={!photo || operationPending || astraConfigured === false}>{busy ? <LoaderCircle className="spin" size={18} /> : <PenLine size={18} />}{busy ? phase === 'generating' ? 'Imagining…' : phase === 'running' ? 'Drawing…' : 'In the queue…' : 'Sketch me'}{!busy && <ArrowRight size={18} />}</button>}
       </section>
       {error && <div className="error-message" role="alert"><CircleHelp size={19} /><p>{error}</p><button onClick={() => setError('')} className="icon-button" aria-label="Dismiss message"><X size={17} /></button></div>}
 
       <section className="how-it-works" aria-label="How it works"><div><span className="process-icon"><Camera size={18} strokeWidth={1.5} /></span><p><strong>A moment from you</strong><span>A webcam photo or upload</span></p></div><ArrowRight className="process-arrow" size={18} /><div><span className="process-icon"><Sparkles size={18} strokeWidth={1.5} /></span><p><strong>A few lines from Astra</strong><span>Your likeness, simplified</span></p></div><ArrowRight className="process-arrow" size={18} /><div><span className="process-icon"><PenLine size={18} strokeWidth={1.5} /></span><p><strong>A sketch from Isaac Sim</strong><span>Every stroke drawn in simulation</span></p></div></section>
 
-      <div className="settings-section" id="connection-settings"><button className="settings-toggle" aria-expanded={settingsOpen} aria-controls="settings-content" onClick={() => setSettingsOpen(!settingsOpen)}><Settings2 size={14} />Connection settings<ChevronDown size={14} className={settingsOpen ? 'rotate' : ''} /></button><button className="sample-button" onClick={() => void sketch(true)} disabled={operationPending}><ImagePlus size={14} />Try sample strokes</button></div>
-      {settingsOpen && <section className="settings-panel" id="settings-content"><label htmlFor="api-url">Your simulator backend address</label><p>Connect your own Isaac Sim setup using its HTTPS backend address. Your machine or cloud account runs the simulator and supplies the model credentials. Leave blank when this page is served by your backend.</p><div className="settings-form"><input id="api-url" type="url" placeholder="https://your-studio-tunnel.example.com" value={apiDraft} onChange={event => setApiDraft(event.target.value)} disabled={busy} autoCapitalize="off" autoCorrect="off" spellCheck={false} /><button className="button dark" onClick={saveConnection} disabled={busy}>Save connection</button></div>{settingsError && <p className="settings-error" role="alert">{settingsError}</p>}<span className="settings-note">{api ? `Current API: ${api}` : 'Current API: same address as this page'} · Saved only in this browser.<br />Keep your OpenAI API key on your backend, never in this field. Sample strokes use your simulator without calling Astra.</span></section>}
+      <div className="settings-section" id="connection-settings"><button className="settings-toggle" aria-expanded={settingsOpen} aria-controls="settings-content" onClick={() => setSettingsOpen(!settingsOpen)}><Settings2 size={14} />Connection settings<ChevronDown size={14} className={settingsOpen ? 'rotate' : ''} /></button></div>
+      {settingsOpen && <section className="settings-panel" id="settings-content"><label htmlFor="api-url">Your simulator backend address</label><p>Connect your own Isaac Sim setup using its HTTPS backend address. Your machine or cloud account runs the simulator and supplies the model credentials. Leave blank when this page is served by your backend.</p><div className="settings-form"><input id="api-url" type="url" placeholder="https://your-studio-tunnel.example.com" value={apiDraft} onChange={event => setApiDraft(event.target.value)} disabled={busy} autoCapitalize="off" autoCorrect="off" spellCheck={false} /><button className="button dark" onClick={saveConnection} disabled={busy}>Save connection</button></div>{settingsError && <p className="settings-error" role="alert">{settingsError}</p>}<span className="settings-note">{api ? `Current API: ${api}` : 'Current API: same address as this page'} · Saved only in this browser.<br />Keep your OpenAI API key on your backend, never in this field.</span></section>}
     </main>
 
     <footer><span>SIM / SKETCH</span><p>A little human. A little machine. Entirely you.</p><span>MADE OF LINES & CURIOSITY</span></footer>
