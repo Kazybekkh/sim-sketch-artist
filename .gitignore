@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+!.env.*.example
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+jobs/
+previews/
+runtime/
+node_modules/
+dist/
+*.log
+*.tsbuildinfo
+.DS_Store
+sim/assets/

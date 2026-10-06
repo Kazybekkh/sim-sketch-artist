@@ -1,0 +1,13 @@
+{
+  "robot_asset": "sim/assets/so101_new_calib.usd",
+  "robot_root": "/World/SO101",
+  "page_center": [0.02, -0.215, 0.025],
+  "page_size": [0.10, 0.11],
+  "pen_tip_local": [-0.0079, -0.000218121, -0.1431274],
+  "pen_lift_m": 0.018,
+  "path_spacing_m": 0.0025,
+  "tracking_tolerance_m": 0.002,
+  "physics_dt": 0.008333333333333333,
+  "substeps_per_point": 5,
+  "max_settle_steps": 120
+}
