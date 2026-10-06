@@ -3,6 +3,12 @@
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
+**Live app:** https://sim-sketch-artist.lovable.app/  
+**Lovable project:** https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e
+
+The live app requires the Ubuntu backend, HTTPS tunnel and Isaac Sim worker to
+remain running. The tunnel address can be changed in Connection settings.
+
 ![SO-101 drawing an Astra-generated test portrait](docs/demo/isaac-portrait.png)
 
 The image above is an actual Isaac Sim run using a synthetic test portrait.
@@ -86,9 +92,9 @@ Set `VITE_API_BASE_URL` or the app's Connection setting to the HTTPS tunnel URL.
 Use the published HTTPS app on your Mac and grant it webcam permission. Its
 requests call this Ubuntu API directly. API keys belong only in Ubuntu's `.env`.
 
-Lovable must be signed in and connected separately. The `frontend/` directory is
-a working reference implementation; its existence does not mean a Lovable
-project has been created or published. Lovable supports exporting a new project
+The linked Lovable app has been created, published and tested against this backend.
+The `frontend/` directory is a separately runnable reference implementation.
+Lovable supports exporting a new project
 to GitHub and syncing subsequent code changes, but not directly importing an
 existing repository as a new project.
 
@@ -141,7 +147,9 @@ the app does not save them locally. Derived previews, strokes and results remain
 in ignored runtime folders. No secrets, personal photos or downloaded robot
 assets are included in the source repository.
 
-Demo video: pending a completed webcam run.
+Demo video: [36-second SO-101 drawing recording](docs/demo/isaac-drawing.mp4).
+It uses the synthetic Astra test portrait, not a webcam session. A recording with
+the user's Mac webcam is still pending.
 
 ## References
 

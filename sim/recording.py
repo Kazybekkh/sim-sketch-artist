@@ -13,7 +13,7 @@ class ViewportRecorder:
         if self.destination.exists():
             raise FileExistsError(f"Recording already exists: {self.destination}")
         self.destination.parent.mkdir(parents=True, exist_ok=True)
-        self.frames = Path(tempfile.mkdtemp(prefix=".isaac-frames-", dir=self.destination.parent))
+        self.frames = Path(tempfile.mkdtemp(prefix="isaac-frames-"))
         self.count = 0
         self.fps = fps
         self.pending = []

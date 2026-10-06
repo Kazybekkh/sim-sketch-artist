@@ -34,6 +34,9 @@ to encode an MP4. The output must be a new path. This feature requires `--once`:
 
 Video plays captured rendered frames at 24 fps; it is a simulation demonstration,
 not a real-time timing measurement or evidence of a live webcam session.
+The bundled [`isaac-drawing.mp4`](../docs/demo/isaac-drawing.mp4) is a 36-second
+prerecorded simulation of Astra's response to a synthetic portrait test image.
+It contains 13 strokes and shows the actual SO-101 simulation, not marker mode.
 
 Assets are downloaded from NVIDIA's Isaac Sim 5.1 asset collection, cached
 locally, and excluded from source control. NVIDIA's asset terms apply. This is

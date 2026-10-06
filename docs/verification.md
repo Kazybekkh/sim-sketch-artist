@@ -19,6 +19,16 @@ Local environment: Ubuntu 24.04.4, NVIDIA GeForce RTX 5070 Ti (16 GB), driver
   worst target error 0.39 mm.
 - The public HTTPS tunnel's `/health` returned `{"ok":true}`.
 - A persistent GUI worker reached `SIM_READY mode=robot` on the main jobs folder.
+- The reference browser app completed its sample job through the live GUI worker.
+- The actual Lovable preview completed both its sample job and an uploaded
+  synthetic portrait through HTTPS → Astra → job queue → GUI SO-101 → result.
+  The portrait completed 13 strokes and its finished image was visually checked
+  in Lovable. This was the real external API, not a browser mock.
+- The Lovable app was published at https://sim-sketch-artist.lovable.app/.
+- The published site completed a fresh sample job and displayed “Finished — 4
+  strokes drawn” with the real result image.
+- A 36.375-second H.264 viewport recording contains 873 frames of the SO-101
+  drawing the synthetic Astra portrait. Early and late frames were checked.
 
 ![Actual measured pen trace](demo/actual-pen-trail.png)
 
