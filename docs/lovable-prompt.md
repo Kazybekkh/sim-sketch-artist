@@ -1,10 +1,10 @@
 # Paste into your Lovable project
 
-Build a single-page app called Sim Sketch Artist. It takes a webcam portrait on a Mac and makes a simulated SO-101 robot on a separate Ubuntu computer draw it. Use React and TypeScript. Use a warm paper background, dark ink, restrained green buttons and a large square sketch canvas.
+Build a single-page app called Sim Sketch Artist. It takes a webcam portrait on a Mac and makes a simulated SO-101 robot on the user’s own local or cloud Ubuntu machine draw it. Use React and TypeScript. Use a warm paper background, dark ink, restrained green buttons and a large square sketch canvas.
 
-The backend already exists. Call it directly over HTTPS with a configurable `VITE_API_BASE_URL`. Also allow a user to paste the backend URL in a collapsible Connection settings section and remember it in localStorage. The URL is public configuration, not an API credential. Do not add OpenAI calls, an API key, a mock backend, Supabase or a database to the browser app.
+The backend already exists. Call it directly over HTTPS with a configurable `VITE_API_BASE_URL`. Also allow a user to paste the backend URL in a collapsible Connection settings section and remember it in localStorage. Each user connects their own backend; do not prefill the project author’s temporary tunnel. The URL is public configuration, not an API credential. Do not add OpenAI calls, an API key, a mock backend, Supabase or a database to the browser app.
 
-The main flow is: enable webcam, take a photo, click **Sketch me**. Upload is an alternative. Clicking Sketch me should POST the photo to `/portrait`, animate the returned strokes on a canvas, then automatically POST them to `/draw`. Poll `/status/{job_id}` once a second and show the finished `/result/{job_id}` image when state is done. The robot is simulated in Isaac Sim on Ubuntu. Do not claim there is a live simulator video feed in the browser.
+The main flow is: enable webcam, take a photo, click **Sketch me**. Upload is an alternative. Clicking Sketch me should POST the photo to `/portrait`, animate the returned strokes on a canvas, then automatically POST them to `/draw`. Poll `/status/{job_id}` once a second and show the finished `/result/{job_id}` image when state is done. The robot is simulated in Isaac Sim on Ubuntu. Embed the actual live camera using the configured backend’s `/sim/view` page, following `docs/lovable-live-view.md`. This viewer includes real camera controls; keep the planned stroke canvas separately labelled.
 
 API contract:
 

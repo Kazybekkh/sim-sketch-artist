@@ -8,8 +8,8 @@ Paste this into the existing Lovable project:
 
 > Add a prominent "Live Isaac Sim" panel to the current Sim Sketch Artist app.
 > Embed an iframe whose src is the current configured backend API base URL plus
-> `/sim/view`. The current demo URL is
-> `https://twenty-barnes-framework-battle.trycloudflare.com/sim/view`.
+> `/sim/view`. Each user supplies their own backend address in Connection
+> settings; do not default to the project author’s computer or credentials.
 > This page already displays actual simulator frames, live/offline state,
 > SO-101 motion, ink and stroke progress, plus drag-to-orbit, Shift-drag pan,
 > scroll zoom and camera presets. Allow fullscreen. Give it a descriptive iframe title,

@@ -3,16 +3,19 @@
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
-**Browser studio with live robot view:** https://twenty-barnes-framework-battle.trycloudflare.com/
-
-**Interactive Isaac Sim viewer:** https://twenty-barnes-framework-battle.trycloudflare.com/sim/view
-
 **Lovable app:** https://sim-sketch-artist.lovable.app/
 
 **Lovable project:** https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e
 
-The live app requires the Ubuntu backend, HTTPS tunnel and Isaac Sim worker to
-remain running. The tunnel address can be changed in Connection settings.
+**Connect your own setup:** this public repository supplies the code, not a shared
+GPU or model-credit service. The author's temporary demo tunnel has been stopped.
+Each operator supplies their own Isaac Sim machine, OpenAI API credentials and
+model access. Follow the [self-hosting handoff](docs/self-hosting.md).
+
+Run the reference studio at `http://localhost:8000` on your simulator host, or
+connect a browser frontend to your own protected backend address using Connection
+settings. The interactive viewer is available at your backend's `/sim/view` path.
+Codex helped build the project; it is not required while the app runs.
 
 ![SO-101 drawing an Astra-generated test portrait](docs/demo/isaac-portrait.png)
 
@@ -169,9 +172,13 @@ Record a complete Mac-to-simulator run for the submission after both are verifie
 
 ## Demo scope and data
 
-This is a hackathon demo with permissive CORS and no user accounts. Anyone with
-the tunnel URL can submit jobs and consume the configured API budget. Stop the
-tunnel after the demo. Input photos are processed in memory and sent to OpenAI;
+This is a hackathon prototype with permissive CORS and no user accounts.
+The source is publicly visible; a shared hosted service is not provided. Each
+operator pays for their own GPU and API use. Anyone who can reach an unprotected
+backend can submit jobs and consume its configured API budget. Keep the backend
+private or place it behind authenticated access; an unguessable tunnel URL is
+not authentication. The tunnel command above is for a temporary supervised demo,
+not an unattended public deployment. Input photos are processed in memory and sent to OpenAI;
 the app does not save them locally. Derived previews, strokes and results remain
 in ignored runtime folders. No secrets, personal photos or downloaded robot
 assets are included in the source repository.
