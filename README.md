@@ -3,7 +3,8 @@
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
-**Live app:** https://sim-sketch-artist.lovable.app/  
+**Live app:** https://sim-sketch-artist.lovable.app/
+
 **Lovable project:** https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e
 
 The live app requires the Ubuntu backend, HTTPS tunnel and Isaac Sim worker to
