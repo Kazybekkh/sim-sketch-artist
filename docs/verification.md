@@ -3,10 +3,15 @@
 Local environment: Ubuntu 24.04.4, NVIDIA GeForce RTX 5070 Ti (16 GB), driver
 580.178.04, Isaac Sim 5.1.0-rc.19. APIs were checked against this installation.
 
-- 44 backend tests pass: input validation, model request shape/retry/error
+- 65 backend tests pass: input validation, model request shape/retry/error
   handling, image limits and normalization, concurrent queue claims, path
   validation, previews and result rendering from dense measured trails.
-- React/TypeScript production build passes.
+- Camera API checks cover finite bounds, rejected commands preserving the pending
+  pose, latest-command replacement, offline rejection, worker acknowledgment
+  and cross-origin requests.
+- React/TypeScript production build passes. Camera gesture bounds and mocked
+  transport checks cover throttling, latest input, one request at a time, stale
+  acknowledgments, timeout recovery and component cleanup.
 - OpenAI authenticated model listing succeeded; the configured Astra model was
   selected from that response rather than guessed.
 - Live `/portrait` request: an explicitly synthetic portrait image produced a
@@ -42,6 +47,17 @@ Local environment: Ubuntu 24.04.4, NVIDIA GeForce RTX 5070 Ti (16 GB), driver
 - The reference frontend includes a live panel and scrolls it into view once
   a drawing is queued. The new iframe has not yet been applied to the separate
   Lovable deployment; browser automation is unavailable in the current task.
+
+- Interactive viewer: three camera presets sent over public HTTPS were accepted
+  and acknowledged by the actual worker in 0.43–0.72 seconds. Retrieved JPEGs
+  were 1280×900 and visually showed the requested different views. The paper
+  close-up was adjusted after inspection to keep the nib and paper visible.
+- A separate Isaac run completed a two-stroke drawing while receiving camera
+  changes. Camera metadata is read back from USD after application.
+- Fixed image sizing in the frontend and added fullscreen plus a separate
+  `/sim/view` page. Browser rendering and physical mouse gestures could not be
+  inspected in this task because the browser automation inventory is empty;
+  HTTP routing, production assets, actual camera movement and frames were checked.
 
 ![Actual measured pen trace](demo/actual-pen-trail.png)
 

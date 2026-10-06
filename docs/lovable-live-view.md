@@ -11,7 +11,8 @@ Paste this into the existing Lovable project:
 > `/sim/view`. The current demo URL is
 > `https://twenty-barnes-framework-battle.trycloudflare.com/sim/view`.
 > This page already displays actual simulator frames, live/offline state,
-> SO-101 motion, ink and stroke progress. Give it a descriptive iframe title,
+> SO-101 motion, ink and stroke progress, plus drag-to-orbit, Shift-drag pan,
+> scroll zoom and camera presets. Allow fullscreen. Give it a descriptive iframe title,
 > width 100%, and a responsive height of about 550px (400px on mobile).
 > When Sketch me or Try sample strokes successfully queues a job, scroll this
 > panel into view once, respecting reduced-motion preferences. Preserve the
@@ -27,6 +28,8 @@ Minimal React embed, with `apiBase` supplied by the existing connection setting:
 <iframe
   title="Live Isaac Sim SO-101 drawing camera"
   src={`${apiBase.replace(/\/$/, '')}/sim/view`}
+  allow="fullscreen"
+  allowFullScreen
   style={{ width: '100%', height: 550, border: 0, borderRadius: 16 }}
 />
 ```

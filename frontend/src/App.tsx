@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowRight, Camera, Check, ChevronDown, CircleHelp, ImagePlus, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
 import LiveSimulator from './LiveSimulator';
+import { API_STORAGE, initialApi } from './apiConfig';
 
 type Point = [number, number];
 type Portrait = { title: string; strokes: Point[][]; preview_url?: string };
 type JobStatus = { state: 'queued' | 'running' | 'done' | 'error'; stroke: number; total: number; error: string | null };
 type Phase = 'idle' | 'generating' | 'submitting' | 'queued' | 'running' | 'done' | 'error' | 'poll_error';
 type Photo = { blob: Blob; url: string; name: string };
-const DEFAULT_API = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
-const API_STORAGE = 'sim-sketch-api-url';
 
 const SAMPLE: Portrait = {
   title: 'Sample smiley',
@@ -19,10 +18,6 @@ const SAMPLE: Portrait = {
     [[0.34, 0.57], [0.38, 0.63], [0.44, 0.67], [0.5, 0.68], [0.56, 0.67], [0.62, 0.63], [0.66, 0.57]],
   ],
 };
-
-function initialApi() {
-  try { return localStorage.getItem(API_STORAGE) ?? DEFAULT_API; } catch { return DEFAULT_API; }
-}
 
 function apiUrl(base: string, path: string) { return `${base}${path}`; }
 

@@ -102,19 +102,23 @@ def main():
     from isaacsim.core.prims import SingleArticulation, SingleRigidPrim
     from isaacsim.core.utils.stage import add_reference_to_stage
     from isaacsim.core.utils.types import ArticulationAction
-    from isaacsim.core.utils.viewports import set_camera_view
+    from sim.camera_controls import CameraController
     from sim.kinematics import JOINT_NAMES, PenKinematics, quat_matrix
 
     world = World(stage_units_in_meters=1.0, physics_dt=config["physics_dt"], rendering_dt=1 / 60)
     recorder = None
     live = None
+    camera = None
     pacing_active = False
     step_deadline = None
 
     def simulation_step(render=True):
         nonlocal step_deadline
+        if render and camera is not None:
+            camera.poll()
         world.step(render=render)
         if render and live is not None:
+            live.set_camera(camera.metadata())
             live.tick()
         if render and recorder is not None:
             recorder.capture()
@@ -152,7 +156,7 @@ def main():
     sun = UsdLux.DistantLight.Define(stage, "/World/KeyLight")
     sun.CreateIntensityAttr(1800)
     sun.AddRotateXYZOp().Set(Gf.Vec3f(30, -25, -25))
-    set_camera_view(eye=np.array([.37, -.54, .44]), target=np.array([.0, -.17, .13]))
+    camera = CameraController(args.jobs_dir)
 
     robot = gripper = kinematics = None
     if args.mode == "robot":

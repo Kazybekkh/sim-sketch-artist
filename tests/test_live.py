@@ -9,11 +9,16 @@ from PIL import Image
 import pytest
 
 from backend.jobs import atomic_write_json
+import backend.main as api
 from backend.main import create_app
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, "ROOT", tmp_path)
+    frontend = tmp_path / "frontend" / "dist"
+    frontend.mkdir(parents=True)
+    (frontend / "index.html").write_text('<!doctype html><div id="root"></div><script src="/assets/app.js"></script>')
     return TestClient(create_app(jobs_dir=tmp_path / "jobs", preview_dir=tmp_path / "previews"))
 
 
@@ -115,15 +120,91 @@ def test_viewer_can_be_embedded_by_lovable(client):
     assert response.headers["content-security-policy"] == "frame-ancestors *"
     assert "x-frame-options" not in response.headers
     assert "no-store" in response.headers["cache-control"]
-    assert "Last received frame" in response.text
-    assert "Marker fallback" in response.text
-    assert "fetch('/sim/frame" in response.text
-    assert "fetch('/sim/status" in response.text
+    assert '<div id="root">' in response.text
+    assert '/assets/app.js' in response.text
+
+
+def test_viewer_without_frontend_build_explains_next_step(client):
+    (api.ROOT / "frontend" / "dist" / "index.html").unlink()
+    response = client.get("/sim/view")
+    assert response.status_code == 503
+    assert "npm --prefix frontend run build" in response.text
 
 
 def test_live_routes_support_cross_origin_lovable(client):
     publish(client)
     response = client.get("/sim/status", headers={"Origin": "https://example.lovable.app"})
+    assert response.headers["access-control-allow-origin"] == "*"
+
+
+POSE = {"yaw": -0.785, "pitch": 0.535, "distance": 0.608, "target": [0, -0.17, 0.13]}
+
+
+def test_camera_command_requires_interactive_live_worker(client):
+    assert client.post("/sim/camera", json=POSE).status_code == 503
+    directory, _ = publish(client)
+    assert client.post("/sim/camera", json=POSE).status_code == 503
+    assert not (directory / "camera.json").exists()
+    publish(client, camera=POSE, updated_at=time.time() - 10)
+    assert client.post("/sim/camera", json=POSE).status_code == 503
+
+
+def test_camera_commands_replace_pending_pose_and_only_worker_acknowledges(client):
+    directory, _ = publish(client, camera=POSE)
+    first = client.post("/sim/camera", json=POSE)
+    assert first.status_code == 202
+    assert first.json()["accepted"] is True
+    second_pose = {**POSE, "pitch": 1.55, "target": [0.02, -0.215, 0.025]}
+    second = client.post("/sim/camera", json=second_pose)
+    assert second.status_code == 202
+    assert second.json()["command_id"] != first.json()["command_id"]
+    assert json.loads((directory / "camera.json").read_text()) == {
+        **second_pose, "command_id": second.json()["command_id"]}
+    assert client.get("/sim/status").json()["camera_command_id"] is None
+    publish(client, camera={**second_pose, "pitch": 1.5500000000001}, camera_command_id=second.json()["command_id"])
+    status = client.get("/sim/status").json()
+    assert status["camera_command_id"] == second.json()["command_id"]
+    assert status["camera"] == second_pose
+
+
+@pytest.mark.parametrize("changes", [
+    {"yaw": 8}, {"yaw": True}, {"pitch": 0}, {"pitch": "1.0"},
+    {"distance": 0.119}, {"distance": 1.501}, {"distance": float("nan")},
+    {"target": [0, 0]}, {"target": [0, 0, 0, 0]}, {"target": [0, 0, -0.01]},
+    {"target": [0.51, 0, 0]}, {"target": [0, float("inf"), 0]},
+    {"target": [True, 0, 0]}, {"command_id": "browser-id"}, {"code": "anything"},
+])
+def test_camera_rejects_invalid_commands_without_overwriting(client, changes):
+    directory, _ = publish(client, camera=POSE)
+    valid = client.post("/sim/camera", json=POSE)
+    before = (directory / "camera.json").read_bytes()
+    response = client.post("/sim/camera", content=json.dumps({**POSE, **changes}),
+                           headers={"Content-Type": "application/json"})
+    assert valid.status_code == 202
+    assert response.status_code == 422
+    assert (directory / "camera.json").read_bytes() == before
+
+
+def test_bad_camera_metadata_does_not_hide_valid_live_frame(client):
+    publish(client, camera={**POSE, "distance": None})
+    status = client.get("/sim/status").json()
+    assert status["online"] is True
+    assert status["camera"] is None
+
+
+def test_usd_float_error_at_bounds_keeps_camera_controls_available(client):
+    publish(client, camera={**POSE, "distance": 0.11999999, "target": [0.50000001, -0.50000001, -0.00000001]})
+    status = client.get("/sim/status").json()
+    assert status["online"] is True
+    assert status["camera"]["distance"] == 0.12
+    assert status["camera"]["target"] == [0.5, -0.5, 0]
+
+
+def test_camera_control_supports_lovable_cross_origin(client):
+    publish(client, camera=POSE)
+    response = client.post("/sim/camera", json=POSE,
+                           headers={"Origin": "https://example.lovable.app"})
+    assert response.status_code == 202
     assert response.headers["access-control-allow-origin"] == "*"
     response = client.get("/sim/frame", headers={"Origin": "https://example.lovable.app"})
     assert response.headers["access-control-allow-origin"] == "*"

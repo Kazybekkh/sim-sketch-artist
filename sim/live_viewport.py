@@ -15,7 +15,7 @@ from backend.jobs import atomic_write_json
 
 
 class LiveViewport:
-    def __init__(self, jobs_dir, *, mode, fps=5, width=960, quality=75):
+    def __init__(self, jobs_dir, *, mode, fps=5, width=1280, quality=80):
         from omni.kit.viewport.utility import get_active_viewport
 
         self.viewport = get_active_viewport()
@@ -39,10 +39,14 @@ class LiveViewport:
         self._next_capture = 0.0
         self._closed = False
         self._state = {"state": "idle", "job_id": None, "stroke": 0, "total": 0, "error": None}
+        self._camera = {}
 
     def set_state(self, *, state, job_id=None, stroke=0, total=0, error=None):
         self._state = {"state": state, "job_id": job_id, "stroke": stroke,
                        "total": total, "error": str(error)[:1000] if error is not None else None}
+
+    def set_camera(self, metadata):
+        self._camera = dict(metadata)
 
     def tick(self):
         """Call after rendered simulation steps; at most one capture/encode exists."""
@@ -61,7 +65,7 @@ class LiveViewport:
             return
         self._next_capture = now + self.interval
         self._in_flight = True
-        state = dict(self._state)
+        state = {**self._state, **self._camera}
 
         def captured(buffer, buffer_size, width, height, byte_format):
             try:
@@ -102,6 +106,7 @@ class LiveViewport:
         self.frame_id += 1
         atomic_write_json(self.directory / "status.json", {
             **state, "mode": self.mode, "updated_at": time.time(), "frame_id": self.frame_id,
+            "frame_width": frame.width, "frame_height": frame.height,
         })
 
     def close(self):

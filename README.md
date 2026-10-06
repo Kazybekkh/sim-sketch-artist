@@ -5,6 +5,8 @@ an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
 **Browser studio with live robot view:** https://twenty-barnes-framework-battle.trycloudflare.com/
 
+**Interactive Isaac Sim viewer:** https://twenty-barnes-framework-battle.trycloudflare.com/sim/view
+
 **Lovable app:** https://sim-sketch-artist.lovable.app/
 
 **Lovable project:** https://lovable.dev/projects/23eb3da7-7b3a-499d-a095-c1112a6b197e
@@ -74,6 +76,14 @@ including the SO-101's motion and ink. The camera publisher captures at up to
 5 frames per second; the browser requests frames sequentially about every
 400 ms. Disconnected or stale frames are clearly labelled. This is a live
 simulator view, separate from the planned stroke preview and recorded demo video.
+
+Drag the camera image to orbit, scroll to zoom, and Shift-drag or right-drag to
+pan. The **Whole scene**, **Paper close-up** and **Top view** presets move the
+actual Isaac Sim camera. **Open separate viewer** opens `/sim/view`; fullscreen
+is also available. Arrow keys orbit, Shift+arrows pan, +/− zoom and R resets.
+Camera changes are shared between viewers and work while the arm draws. These
+controls change the scene camera; they do not expose the native Isaac editor.
+The renderer uses a fixed 1280×900 image, fitted without cropping in the browser.
 `GET /health` verifies the HTTP service only; it does not assert that Isaac Sim
 or the model is working. `GET /ready` reports whether model credentials are configured.
 
@@ -121,11 +131,16 @@ existing repository as a new project.
 | `GET /result/{job_id}` | PNG rendering of the measured trail |
 | `GET /sim/status` | Current camera state, job progress and frame freshness |
 | `GET /sim/frame` | Latest actual viewport JPEG; HTTP 503 if unavailable or stale |
-| `GET /sim/view` | Self-contained live camera page, ready to embed in Lovable |
+| `POST /sim/camera` | Bounded `yaw`, `pitch`, `distance`, `target`; HTTP 202 with `command_id` |
+| `GET /sim/view` | Interactive camera page, ready to embed in Lovable |
 
 ```json
 {"title":"Diagonal","strokes":[[[0.2,0.2],[0.8,0.8]]]}
 ```
+
+Camera commands are atomically replaced with the newest requested pose. The
+worker acknowledges `camera_command_id` in `/sim/status` only after applying
+and reading back the actual USD camera. Offline workers reject camera commands.
 
 Coordinates are in `[0,1]`, origin top-left. There are 1–40 strokes with 2–25
 points per stroke. Astra output is validated, repaired within these limits and
