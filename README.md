@@ -4,7 +4,8 @@
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
-https://github.com/user-attachments/assets/e7873a2c-4b8e-4593-af1b-6f74139c639e
+<img width="1112" height="720" alt="Built-in Retina Display" src="https://github.com/user-attachments/assets/088303a5-4141-4b9d-af3f-f0af30d59212" />
+
 
 
 
