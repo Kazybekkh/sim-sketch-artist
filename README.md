@@ -1,7 +1,13 @@
 # Sim Sketch Artist
 
+
 Take a webcam portrait on your Mac. Astra turns it into simple pen strokes, and
 an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
+
+<img width="1112" height="720" alt="Built-in Retina Display" src="https://github.com/user-attachments/assets/088303a5-4141-4b9d-af3f-f0af30d59212" />
+
+
+
 
 **Connect your own setup:** this public repository supplies the code, not a shared
 GPU or model-credit service. Each operator supplies their own Isaac Sim machine, OpenAI API credentials and
