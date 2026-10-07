@@ -33,7 +33,7 @@ Isaac Sim uses its own `python.sh`. The file queue keeps those environments sepa
 
 ## Run on Ubuntu
 
-Requirements: Python 3.11+, Node.js 22+, an installed Isaac Sim 5.1 with a supported
+Requirements: Python 3.11+, Node.js 22.18+ (or 24+), an installed Isaac Sim 5.1 with a supported
 NVIDIA GPU, and OpenAI API access to the Astra model you configure.
 
 ```bash
@@ -78,7 +78,8 @@ Camera changes are shared between viewers and work while the arm draws. These
 controls change the scene camera; they do not expose the native Isaac editor.
 The renderer uses a fixed 1280×900 image, fitted without cropping in the browser.
 `GET /health` verifies the HTTP service only; it does not assert that Isaac Sim
-or the model is working. `GET /ready` reports whether model credentials are configured.
+or the model is working. `GET /ready` identifies the Sim Sketch backend protocol and reports whether model
+credentials are configured. It does not verify model access or simulator readiness.
 
 The SO-101 asset is fetched from NVIDIA's Isaac Sim 5.1 asset collection when
 needed and kept out of Git. See [sim/README.md](sim/README.md) for drawing modes,
@@ -93,8 +94,9 @@ private SSH forwarding or authenticated gateway options in the
 running while using the app.
 
 To create a Lovable frontend, use [the app prompt](docs/lovable-prompt.md) and
+[connection setup](docs/lovable-connection-flow.md) and
 [live-view integration](docs/lovable-live-view.md). Configure that app's
-Connection settings with your backend's HTTPS address. Keep model credentials
+**Connect your Isaac Sim** panel with your backend's HTTPS address. Keep model credentials
 only on the backend machine.
 
 The `frontend/` directory runs independently and includes the interactive

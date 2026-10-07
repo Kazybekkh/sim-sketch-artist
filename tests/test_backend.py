@@ -39,6 +39,22 @@ def test_health_and_cors(client):
     assert "OPENAI_API_KEY" not in client.get("/ready").text
 
 
+def test_readiness_identifies_bridge_without_claiming_simulator_is_running(client, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "private-test-key")
+    monkeypatch.setenv("ASTRA_MODEL", "configured-test-model")
+    response = client.get("/ready")
+    body = response.json()
+    assert body["service"] == "sim-sketch-artist"
+    assert body["protocol_version"] == 1
+    assert body["astra_configured"] is True
+    assert body["astra_model"] == "configured-test-model"
+    assert "private-test-key" not in response.text
+    assert "no-store" in response.headers["cache-control"]
+    assert client.get("/sim/status").json()["online"] is False
+    monkeypatch.delenv("OPENAI_API_KEY")
+    assert client.get("/ready").json()["astra_configured"] is False
+
+
 @pytest.mark.parametrize("point", [[-0.1, 0.2], [1.1, 0.2], [True, 0.2], ["0.1", 0.2], [0.1, 0.2, 0.3]])
 def test_draw_rejects_invalid_coordinates(client, point):
     assert client.post("/draw", json={"title": "Bad", "strokes": [[point, [0.5, 0.5]]]}).status_code == 422

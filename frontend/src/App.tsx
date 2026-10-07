@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, Camera, Check, ChevronDown, CircleHelp, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, Camera, Check, CircleHelp, LoaderCircle, PenLine, RefreshCw, Settings2, Sparkles, Upload, VideoOff, X } from 'lucide-react';
 import LiveSimulator from './LiveSimulator';
-import { API_STORAGE, initialApi } from './apiConfig';
+import ConnectionSetup from './ConnectionSetup';
+import useStudioConnection from './useStudioConnection';
 
 type Point = [number, number];
 type Portrait = { title: string; strokes: Point[][]; preview_url?: string };
@@ -72,12 +73,10 @@ function StrokeCanvas({ portrait }: { portrait: Portrait }) {
 }
 
 export default function App() {
-  const [api, setApi] = useState(initialApi);
-  const [apiDraft, setApiDraft] = useState(api);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsError, setSettingsError] = useState('');
-  const [reachable, setReachable] = useState<boolean | null>(null);
-  const [astraConfigured, setAstraConfigured] = useState<boolean | null>(null);
+  const studio = useStudioConnection();
+  const { connection } = studio;
+  const api = connection.endpoint ?? '';
+  const [jobApi, setJobApi] = useState('');
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
@@ -116,27 +115,12 @@ export default function App() {
   useEffect(() => { if (cameraOn && video.current) video.current.srcObject = stream.current; }, [cameraOn]);
 
   useEffect(() => {
-    let active = true;
-    async function check() {
-      try {
-        const readiness = await request<{ astra_configured: boolean }>(apiUrl(api, '/ready'), {}, 8000);
-        if (active) { setReachable(true); setAstraConfigured(readiness.astra_configured); }
-      } catch { if (active) setReachable(false); }
-    }
-    setReachable(null);
-    setAstraConfigured(null);
-    void check();
-    const interval = window.setInterval(check, 15_000);
-    return () => { active = false; window.clearInterval(interval); };
-  }, [api]);
-
-  useEffect(() => {
     if (!jobId) return;
     let active = true;
     let timer = 0;
     async function poll() {
       try {
-        const next = await request<JobStatus>(apiUrl(api, `/status/${encodeURIComponent(jobId!)}`), {}, 15_000);
+        const next = await request<JobStatus>(apiUrl(jobApi, `/status/${encodeURIComponent(jobId!)}`), {}, 15_000);
         if (!active) return;
         setStatus(next);
         if (next.state === 'done') { setPhase('done'); return; }
@@ -152,7 +136,7 @@ export default function App() {
     }
     void poll();
     return () => { active = false; window.clearTimeout(timer); };
-  }, [jobId, api, pollRevision, queueStarted]);
+  }, [jobId, jobApi, pollRevision, queueStarted]);
 
   async function enableCamera() {
     setError('');
@@ -203,6 +187,8 @@ export default function App() {
   }
 
   async function draw(nextPortrait: Portrait) {
+    const verified = await studio.check();
+    if (!verified.backend || !verified.simulatorOnline || verified.endpoint !== api) throw new Error('Isaac Sim must be connected and active before a drawing can be queued. Recheck your studio connection above.');
     setPhase('submitting');
     const job = await request<{ job_id: string }>(apiUrl(api, '/draw'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -212,6 +198,7 @@ export default function App() {
     setQueueStarted(Date.now());
     setLongWait(false);
     setStatus({ state: 'queued', stroke: 0, total: nextPortrait.strokes.length, error: null });
+    setJobApi(api);
     setJobId(job.job_id);
     setPhase('queued');
     document.getElementById('live-simulator')?.scrollIntoView({
@@ -228,6 +215,9 @@ export default function App() {
     setResultError(false);
     stopCamera();
     try {
+      setPhase(redraw ? 'submitting' : 'generating');
+      const verified = await studio.check();
+      if (!verified.backend || !verified.simulatorOnline || verified.endpoint !== api || (!redraw && !verified.astraConfigured)) throw new Error('Connect your running Isaac Sim studio and configure your model account before sketching. Your photo is still here.');
       let next = redraw ? portrait : null;
       if (!next) {
         setPhase('generating');
@@ -247,31 +237,14 @@ export default function App() {
     }
   }
 
-  function saveConnection() {
-    const value = apiDraft.trim().replace(/\/+$/, '');
-    if (value) {
-      try {
-        const url = new URL(value);
-        const localhost = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-        if (url.protocol !== 'https:' && !(url.protocol === 'http:' && localhost)) throw new Error();
-        if (url.username || url.password || url.search || url.hash) throw new Error();
-      } catch { setSettingsError('Use an HTTPS URL, or http://localhost for local development. Do not include credentials or query parameters.'); return; }
-    }
-    try { localStorage.setItem(API_STORAGE, value); } catch { /* The connection still works for this session. */ }
-    setApi(value);
-    setApiDraft(value);
-    setSettingsError('');
-    setError('');
-  }
-
   const progress = status?.total ? Math.max(0, Math.min(100, (status.stroke / status.total) * 100)) : 0;
-  const statusTitle = phase === 'generating' ? 'Astra is finding your lines' : phase === 'submitting' ? 'Sending your sketch to the studio' : phase === 'queued' ? 'Waiting for Isaac Sim' : phase === 'running' ? 'Your robot is drawing' : phase === 'done' ? 'A little likeness. Made by a robot.' : phase === 'poll_error' ? 'Connection interrupted' : phase === 'error' ? 'Let’s give that another try' : astraConfigured === false ? 'Your studio needs Astra connected' : 'Your portrait begins with a photo';
-  const resultUrl = jobId ? apiUrl(api, `/result/${encodeURIComponent(jobId)}`) : '';
+  const statusTitle = phase === 'generating' ? 'Astra is finding your lines' : phase === 'submitting' ? 'Sending your sketch to the studio' : phase === 'queued' ? 'Waiting for Isaac Sim' : phase === 'running' ? 'Your robot is drawing' : phase === 'done' ? 'A little likeness. Made by a robot.' : phase === 'poll_error' ? 'Connection interrupted' : phase === 'error' ? 'Let’s give that another try' : connection.state !== 'ready' ? 'Connect your studio to start drawing' : 'Your portrait begins with a photo';
+  const resultUrl = jobId ? apiUrl(jobApi, `/result/${encodeURIComponent(jobId)}`) : '';
 
   return <div className="app-shell">
     <header className="site-header">
       <a className="brand" href="#" aria-label="Sim Sketch studio"><span className="brand-mark"><PenLine size={22} strokeWidth={1.8} /></span><span>sim<span className="brand-slash">/</span>sketch<span className="brand-label">THE ROBOT PORTRAIT STUDIO</span></span></a>
-      <button className="connection-pill" onClick={() => setSettingsOpen(!settingsOpen)} aria-expanded={settingsOpen} aria-controls="connection-settings"><span className={`connection-dot ${reachable === true ? 'online' : reachable === false ? 'offline' : ''}`} />{reachable === true ? 'API reachable' : reachable === false ? 'Connect your studio' : 'Checking studio'}<Settings2 size={14} /></button>
+      <a className="connection-pill" href="#connection-settings"><span className={`connection-dot ${connection.state === 'ready' ? 'online' : 'offline'}`} />{connection.state === 'ready' ? 'Studio connected' : connection.state === 'checking' ? 'Checking studio' : 'Connect your studio'}<Settings2 size={14} /></a>
     </header>
 
     <main>
@@ -280,7 +253,9 @@ export default function App() {
         <div className="intro-note"><svg width="76" height="68" viewBox="0 0 76 68" fill="none" aria-hidden="true"><path d="M12 14C40 2 68 18 55 36C45 48 26 29 42 23C68 13 71 54 21 57M21 57L33 48M21 57L35 63" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg><span>One photo.<br />Your own robot artist.</span></div>
       </section>
 
-      <LiveSimulator api={api} job={jobId && status ? { id: jobId, ...status } : null} />
+      <ConnectionSetup {...studio} locked={operationPending} />
+      {connection.backend && connection.simulatorOnline && <LiveSimulator api={api} job={jobId && jobApi === api && status ? { id: jobId, ...status } : null} />}
+      {!connection.simulatorOnline && <div className="simulator-connection-placeholder"><VideoOff size={19} /><div><strong>Your live robot studio appears here</strong><p>Connect your backend and start the Isaac Sim drawing worker. You can prepare a photo below while setting up.</p></div></div>}
 
       <section className="workspace" aria-label="Portrait studio">
         <div className="studio-panel photo-panel">
@@ -306,15 +281,15 @@ export default function App() {
       </section>
 
       <section className="action-strip" aria-label="Sketch controls">
-        <div className="action-copy" aria-live="polite"><div className={`status-icon ${phase === 'done' ? 'success' : ''}`}>{busy ? <LoaderCircle size={20} className="spin" /> : phase === 'done' ? <Check size={20} /> : <Sparkles size={20} strokeWidth={1.5} />}</div><div><h3>{statusTitle}</h3><p>{phase === 'generating' ? 'Turning your photo into a simple line portrait.' : phase === 'submitting' ? 'Adding your strokes to the drawing queue.' : phase === 'queued' ? longWait ? 'Still queued. Start the Isaac Sim worker on your simulator machine.' : 'Your strokes are queued on your connected simulator.' : phase === 'running' ? `Drawing stroke ${status?.stroke ?? 0} of ${status?.total ?? portrait?.strokes.length ?? 0}.` : phase === 'done' ? 'Your finished sketch is ready above.' : phase === 'poll_error' ? 'Resume checking this drawing when the connection is back.' : phase === 'error' ? 'Check the message below, then retry when you’re ready.' : astraConfigured === false ? 'Configure your own Astra credentials on your backend to generate a portrait.' : photo ? 'All set. Let’s turn this moment into a sketch.' : 'Use your webcam or choose a photo to get started.'}</p>{phase === 'running' && <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Robot drawing progress"><span style={{ width: `${progress}%` }} /></div>}</div></div>
-        {phase === 'poll_error' ? <button className="button primary" onClick={() => { setError(''); setPhase('queued'); setPollRevision(value => value + 1); }}><RefreshCw size={17} />Resume checking</button> : phase === 'done' || (phase === 'error' && portrait) ? <button className="button primary" onClick={() => void sketch(true)}><RefreshCw size={17} />Draw again</button> : <button className="button primary" onClick={() => void sketch()} disabled={!photo || operationPending || astraConfigured === false}>{busy ? <LoaderCircle className="spin" size={18} /> : <PenLine size={18} />}{busy ? phase === 'generating' ? 'Imagining…' : phase === 'running' ? 'Drawing…' : 'In the queue…' : 'Sketch me'}{!busy && <ArrowRight size={18} />}</button>}
+        <div className="action-copy" aria-live="polite"><div className={`status-icon ${phase === 'done' ? 'success' : ''}`}>{busy ? <LoaderCircle size={20} className="spin" /> : phase === 'done' ? <Check size={20} /> : <Sparkles size={20} strokeWidth={1.5} />}</div><div><h3>{statusTitle}</h3><p>{phase === 'generating' ? 'Turning your photo into a simple line portrait.' : phase === 'submitting' ? 'Adding your strokes to the drawing queue.' : phase === 'queued' ? longWait ? 'Still queued. Start the Isaac Sim worker on your simulator machine.' : 'Your strokes are queued on your connected simulator.' : phase === 'running' ? `Drawing stroke ${status?.stroke ?? 0} of ${status?.total ?? portrait?.strokes.length ?? 0}.` : phase === 'done' ? 'Your finished sketch is ready above.' : phase === 'poll_error' ? 'Resume checking this drawing when the connection is back.' : phase === 'error' ? 'Check the message below, then retry when you’re ready.' : connection.state !== 'ready' ? 'Your photo stays ready while you connect your own backend and active Isaac Sim worker above.' : photo ? 'All set. Let’s turn this moment into a sketch.' : 'Use your webcam or choose a photo to get started.'}</p>{phase === 'running' && <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} aria-label="Robot drawing progress"><span style={{ width: `${progress}%` }} /></div>}</div></div>
+        {phase === 'poll_error' ? <button className="button primary" disabled={!connection.backend} onClick={() => { setError(''); setPhase('queued'); setPollRevision(value => value + 1); }}><RefreshCw size={17} />Resume checking</button> : phase === 'done' || (phase === 'error' && portrait) ? <button className="button primary" disabled={!connection.backend || !connection.simulatorOnline || operationPending} onClick={() => void sketch(true)}><RefreshCw size={17} />Draw again</button> : <button className="button primary" onClick={() => void sketch()} disabled={!photo || operationPending || connection.state !== 'ready'}>{busy ? <LoaderCircle className="spin" size={18} /> : <PenLine size={18} />}{busy ? phase === 'generating' ? 'Imagining…' : phase === 'running' ? 'Drawing…' : 'In the queue…' : 'Sketch me'}{!busy && <ArrowRight size={18} />}</button>}
       </section>
+      {phase === 'poll_error' && <div className="tracking-help"><p>Your job remains on {jobApi}. Stopping tracking does not cancel it or erase its result on that backend.</p><button type="button" className="text-button" onClick={() => { setJobId(null); setStatus(null); setPhase('idle'); setError(''); }}>Stop tracking this job to change connection</button></div>}
       {error && <div className="error-message" role="alert"><CircleHelp size={19} /><p>{error}</p><button onClick={() => setError('')} className="icon-button" aria-label="Dismiss message"><X size={17} /></button></div>}
 
       <section className="how-it-works" aria-label="How it works"><div><span className="process-icon"><Camera size={18} strokeWidth={1.5} /></span><p><strong>A moment from you</strong><span>A webcam photo or upload</span></p></div><ArrowRight className="process-arrow" size={18} /><div><span className="process-icon"><Sparkles size={18} strokeWidth={1.5} /></span><p><strong>A few lines from Astra</strong><span>Your likeness, simplified</span></p></div><ArrowRight className="process-arrow" size={18} /><div><span className="process-icon"><PenLine size={18} strokeWidth={1.5} /></span><p><strong>A sketch from Isaac Sim</strong><span>Every stroke drawn in simulation</span></p></div></section>
 
-      <div className="settings-section" id="connection-settings"><button className="settings-toggle" aria-expanded={settingsOpen} aria-controls="settings-content" onClick={() => setSettingsOpen(!settingsOpen)}><Settings2 size={14} />Connection settings<ChevronDown size={14} className={settingsOpen ? 'rotate' : ''} /></button></div>
-      {settingsOpen && <section className="settings-panel" id="settings-content"><label htmlFor="api-url">Your simulator backend address</label><p>Connect your own Isaac Sim setup using its HTTPS backend address. Your machine or cloud account runs the simulator and supplies the model credentials. Leave blank when this page is served by your backend.</p><div className="settings-form"><input id="api-url" type="url" placeholder="https://your-studio-tunnel.example.com" value={apiDraft} onChange={event => setApiDraft(event.target.value)} disabled={busy} autoCapitalize="off" autoCorrect="off" spellCheck={false} /><button className="button dark" onClick={saveConnection} disabled={busy}>Save connection</button></div>{settingsError && <p className="settings-error" role="alert">{settingsError}</p>}<span className="settings-note">{api ? `Current API: ${api}` : 'Current API: same address as this page'} · Saved only in this browser.<br />Keep your OpenAI API key on your backend, never in this field.</span></section>}
+
     </main>
 
     <footer><span>SIM / SKETCH</span><p>A little human. A little machine. Entirely you.</p><span>MADE OF LINES & CURIOSITY</span></footer>

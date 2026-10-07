@@ -11,7 +11,7 @@ installation. It does not attach to an arbitrary existing Isaac scene or robot.
 ## Prepare your machine
 
 Use an Ubuntu machine with a compatible NVIDIA GPU and driver, Python 3.11+,
-Node.js 22+, and an Isaac Sim installation containing `python.sh`. This project
+Node.js 22.18+ (or 24+), and an Isaac Sim installation containing `python.sh`. This project
 was tested with Isaac Sim 5.1; newer versions have not been validated here.
 Check NVIDIA's [Isaac Sim 5.1 requirements](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/requirements.html)
 before choosing a local or cloud GPU.
@@ -95,7 +95,7 @@ the separately published Lovable app.
 
 The simplest remote arrangement serves the bundled browser app and API
 together behind your gateway. To use a separately hosted Lovable frontend, put
-your own HTTPS backend URL in **Connection settings** and configure your
+your own HTTPS backend URL in **Connect your Isaac Sim** and configure your
 gateway for that browser's authenticated API and iframe requests. The current
 frontend does not implement gateway sign-in, so that integration must be
 configured and verified separately. Use only a backend you control or have permission to access.

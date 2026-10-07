@@ -4,6 +4,8 @@ The Ubuntu service now publishes live frames from the actual Isaac Sim viewport.
 The reference app at the backend root includes this camera. The separately
 published Lovable app needs the following small integration.
 
+First apply [the connection flow](lovable-connection-flow.md). Only mount the viewer after the backend and active simulator are verified.
+
 Paste this into the existing Lovable project:
 
 > Add a prominent "Live Isaac Sim" panel to the current Sim Sketch Artist app.

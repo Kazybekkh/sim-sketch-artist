@@ -140,10 +140,10 @@ def create_app(*, jobs_dir: str | Path | None = None, preview_dir: str | Path | 
 
     @app.get("/ready")
     def ready():
-        return {"ok": True,
+        return JSONResponse({"ok": True, "service": "sim-sketch-artist", "protocol_version": 1,
                 "astra_configured": bool(os.getenv("OPENAI_API_KEY", "").strip() and os.getenv("ASTRA_MODEL", "").strip()),
                 "astra_model": os.getenv("ASTRA_MODEL", "").strip() or None,
-                "frontend_built": (frontend / "index.html").is_file()}
+                "frontend_built": (frontend / "index.html").is_file()}, headers=NO_CACHE)
 
     @app.get("/sim/status")
     def simulator_status():
