@@ -6,7 +6,7 @@ an SO-101 in Isaac Sim draws them on a virtual sheet of paper.
 
 <img width="1112" height="720" alt="Built-in Retina Display" src="https://github.com/user-attachments/assets/088303a5-4141-4b9d-af3f-f0af30d59212" />
 
-
+Demo video: https://screen.studio/share/MAH3vp7T
 
 
 **Connect your own setup:** this public repository supplies the code, not a shared
